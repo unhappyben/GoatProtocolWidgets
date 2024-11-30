@@ -2,7 +2,7 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: deep-green; icon-glyph: magic;
 
-const WALLET_ADDRESS = "0xfb7405075f2dd0a2aaca6ca2d87d56e09577d6ef"
+const WALLET_ADDRESS = ""
 const CONTRACT_ADDRESS = "0x878b7897C60fA51c2A7bfBdd4E3cB5708D9eEE43"
 const STAKING_CONTRACT = "0xDE1aFF6cc38f3dBed0A93b3C268Cf391B68209aF"
 const RPC_ENDPOINT = "https://arb1.arbitrum.io/rpc"
@@ -154,6 +154,7 @@ function saveTransactions(newTransactions) {
   fm.writeString(path, JSON.stringify(transactions))
 }
 
+
 async function calculateProfit(currentBalance) {
     const fm = FileManager.local()
     const path = fm.joinPath(fm.documentsDirectory(), TRANSACTIONS_FILE)
@@ -173,14 +174,17 @@ async function calculateProfit(currentBalance) {
             }
         })
         
-        // Current value minus net deposits
         const netDeposits = totalDeposited - totalWithdrawn
         return currentBalance - netDeposits
+        
     } catch (e) {
         console.error("Error calculating profit:", e)
         return 0
     }
 }
+
+
+
 async function scanNewTransactions() {
   const lastBlock = await getLastScannedBlock()
   const currentBlock = await getCurrentBlock()
