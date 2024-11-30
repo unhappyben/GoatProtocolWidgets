@@ -1,5 +1,8 @@
-// Constants
-const WALLET_ADDRESS = "" //ADD YOUR WALLET HERE
+// Variables used by Scriptable.
+// These must be at the very top of the file. Do not edit.
+// icon-color: deep-green; icon-glyph: magic;
+
+const WALLET_ADDRESS = "0xfb7405075f2dd0a2aaca6ca2d87d56e09577d6ef"
 const CONTRACT_ADDRESS = "0x878b7897C60fA51c2A7bfBdd4E3cB5708D9eEE43"
 const STAKING_CONTRACT = "0xDE1aFF6cc38f3dBed0A93b3C268Cf391B68209aF"
 const RPC_ENDPOINT = "https://arb1.arbitrum.io/rpc"
@@ -13,6 +16,23 @@ const ACCENT_COLOR = new Color("#C678E5")
 // Event signatures
 const DEPOSIT_EVENT = "0xdcbc1c05240f31ff3ad067ef1ee35ce4997762752e3a095284754544f4c709d7"
 const WITHDRAW_EVENT = "0xfbde797d201c681b91056529119e0b02407c7bb96a4a2c75c01fc9667232c8db"
+
+async function initializeFiles() {
+    const fm = FileManager.local()
+    
+    // Initialize transactions file
+    const txPath = fm.joinPath(fm.documentsDirectory(), TRANSACTIONS_FILE)
+    if (!fm.fileExists(txPath)) {
+        fm.writeString(txPath, JSON.stringify([]))
+        console.log("Created new transactions file")
+    }
+    
+    // Set correct starting block
+    const blockPath = fm.joinPath(fm.documentsDirectory(), LAST_BLOCK_FILE)
+    const startBlock = "267480446"  // First block when strategy was available
+    fm.writeString(blockPath, startBlock)
+    console.log("Set starting block to:", startBlock)
+}
 
 function getFont(size, weight = "regular") {
   return weight === "bold" ? Font.boldSystemFont(size) : Font.regularSystemFont(size)
@@ -79,61 +99,42 @@ async function saveLastScannedBlock(blockNumber) {
   fm.writeString(path, blockNumber.toString())
 }
 
-// Transaction and PPS tracking
 async function getContractEvents(fromBlock, toBlock) {
-  const req = new Request(RPC_ENDPOINT)
-  req.method = "POST"
-  req.headers = { "Content-Type": "application/json" }
-  
-  req.body = JSON.stringify({
-    jsonrpc: "2.0",
-    method: "eth_getLogs",
-    params: [{
-      fromBlock: `0x${fromBlock.toString(16)}`,
-      toBlock: `0x${toBlock.toString(16)}`,
-      address: CONTRACT_ADDRESS,
-      topics: [
-        null,
-        `0x000000000000000000000000${WALLET_ADDRESS.slice(2).toLowerCase()}`
-      ]
-    }],
-    id: 1
-  })
-
-  try {
-    const response = await req.loadJSON()
-    if (response.error) {
-      console.error("RPC Error:", response.error)
-      return []
-    }
-    
-    return response.result.map(log => {
-      const isDeposit = log.topics[0].toLowerCase() === DEPOSIT_EVENT.toLowerCase()
-      const data = log.data.slice(2)
-      
-      const assetsHex = data.slice(0, 64)
-      const sharesHex = data.slice(64, 128)
-      
-      const assets = BigInt("0x" + assetsHex)
-      const shares = BigInt("0x" + sharesHex)
-      
-      const ethAmount = Number(assets) / 1e18
-      const sharesAmount = Number(shares) / 1e18
-      const pps = ethAmount / sharesAmount
-      
-      return {
-        type: isDeposit ? 'deposit' : 'withdraw',
-        amount: ethAmount,
-        shares: sharesAmount,
-        pps: pps,
-        blockNumber: parseInt(log.blockNumber, 16),
-        transactionHash: log.transactionHash
-      }
+    const req = new Request(RPC_ENDPOINT)
+    req.method = "POST"
+    req.headers = { "Content-Type": "application/json" }
+    req.body = JSON.stringify({
+        jsonrpc: "2.0",
+        method: "eth_getLogs",
+        params: [{
+            fromBlock: `0x${fromBlock.toString(16)}`,
+            toBlock: `0x${toBlock.toString(16)}`,
+            address: CONTRACT_ADDRESS,
+            topics: [
+                [DEPOSIT_EVENT, WITHDRAW_EVENT],  // Listen for both events
+                `0x000000000000000000000000${WALLET_ADDRESS.slice(2).toLowerCase()}`
+            ]
+        }],
+        id: 1
     })
-  } catch (error) {
-    console.error("Error fetching events:", error)
-    return []
-  }
+    
+    try {
+        const response = await req.loadJSON()
+        if (response.error) {
+            console.error("RPC Error:", response.error)
+            return []
+        }
+        
+        return response.result.map(log => ({
+            type: log.topics[0].toLowerCase() === DEPOSIT_EVENT.toLowerCase() ? 'deposit' : 'withdraw',
+            amount: Number(BigInt("0x" + log.data.slice(2, 66))) / 1e18,
+            blockNumber: parseInt(log.blockNumber, 16),
+            transactionHash: log.transactionHash
+        }))
+    } catch (error) {
+        console.error("Error fetching events:", error)
+        return []
+    }
 }
 
 function saveTransactions(newTransactions) {
@@ -349,41 +350,62 @@ async function createWidget() {
 
 // Debug function
 async function debugAll() {
-  console.log("\n=== Debug Info ===")
-  
-  const fm = FileManager.local()
-  const txPath = fm.joinPath(fm.documentsDirectory(), TRANSACTIONS_FILE)
-  
-  if (fm.fileExists(txPath)) {
-    const transactions = JSON.parse(fm.readString(txPath))
-    console.log("\nStored Transactions:")
-    transactions.forEach(tx => {
-      console.log(`${tx.type}: ${tx.amount} ETH (PPS: ${tx.pps})`)
-    })
+    console.log("\n=== Debug Info ===")
+    const fm = FileManager.local()
+    const txPath = fm.joinPath(fm.documentsDirectory(), TRANSACTIONS_FILE)
     
-    const balance = await getBalance()
-    console.log("\nCurrent Balance:", balance)
-    
-    const profit = await calculateProfit(parseFloat(balance))
-    console.log("Calculated Profit:", profit)
-  } else {
-    console.log("No transaction history found")
-  }
+    if (fm.fileExists(txPath)) {
+        const transactions = JSON.parse(fm.readString(txPath))
+        let totalDeposited = 0
+        let totalWithdrawn = 0
+        
+        console.log("\nTransaction History:")
+        transactions.forEach(tx => {
+            console.log(`${tx.type}: ${tx.amount} ETH`)
+            if (tx.type === 'deposit') totalDeposited += tx.amount
+            if (tx.type === 'withdraw') totalWithdrawn += tx.amount
+        })
+        
+        console.log("\nTotal Deposited:", totalDeposited)
+        console.log("Total Withdrawn:", totalWithdrawn)
+        console.log("Net Deposits:", totalDeposited - totalWithdrawn)
+        
+        const balance = await getBalance()
+        console.log("Current Balance:", balance)
+        const profit = await calculateProfit(parseFloat(balance))
+        console.log("Calculated Profit:", profit)
+    }
 }
+
+async function verifyEvents() {
+    const lastBlock = await getLastScannedBlock()
+    const currentBlock = await getCurrentBlock()
+    console.log(`Scanning blocks ${lastBlock} to ${currentBlock}`)
+    
+    const events = await getContractEvents(lastBlock, currentBlock)
+    console.log(`Found ${events.length} events:`)
+    events.forEach(event => {
+        console.log(`${event.type}: ${event.amount} ETH (tx: ${event.transactionHash})`)
+    })
+}
+
+
+
 
 // Main execution
 async function main() {
-  const widget = await createWidget()
-  
-  if (config.runsInWidget) {
-    Script.setWidget(widget)
-  } else {
-    widget.presentSmall()
-    await debugAll()
-  }
-  
-  saveLastRefreshTime()
+    const widget = await createWidget()
+    if (config.runsInWidget) {
+        Script.setWidget(widget)
+    } else {
+        widget.presentSmall()
+        await debugAll()
+        await verifyEvents()
+    }
+    
+    saveLastRefreshTime()
 }
 
+await initializeFiles()
 await main()
 Script.complete()
