@@ -198,58 +198,59 @@ async function scanNewTransactions() {
 }
 
 // Balance functions
-async function getBalance() {
-  const req = new Request(RPC_ENDPOINT)
-  req.method = "POST"
-  req.headers = { "Content-Type": "application/json" }
-  req.body = JSON.stringify({
-    jsonrpc: "2.0",
-    method: "eth_call",
-    params: [{
-      to: CONTRACT_ADDRESS,
-      data: `0x70a08231000000000000000000000000${WALLET_ADDRESS.slice(2)}`
-    }, "latest"],
-    id: 1
-  })
-
-  try {
-    const response = await req.loadJSON()
-    if (response.error) {
-      console.error("RPC Error:", response.error)
-      return "Error"
+async function getPricePerShare() {
+    const req = new Request(RPC_ENDPOINT)
+    req.method = "POST"
+    req.headers = { "Content-Type": "application/json" }
+    req.body = JSON.stringify({
+        jsonrpc: "2.0",
+        method: "eth_call",
+        params: [{
+            to: CONTRACT_ADDRESS,
+            data: "0x99530b06"  // pricePerShare() function signature
+        }, "latest"],
+        id: 1
+    })
+    
+    try {
+        const response = await req.loadJSON()
+        if (response.error) return 1
+        return parseInt(response.result, 16) / 1e18
+    } catch (error) {
+        return 1
     }
-    const balance = parseInt(response.result, 16)
-    const stakingBalance = await getStakingBalance()
-    return ((balance + stakingBalance) / 1e18).toFixed(4)
-  } catch (error) {
-    console.error("Error fetching balance:", error)
-    return "Error"
-  }
 }
 
-async function getStakingBalance() {
-  const req = new Request(RPC_ENDPOINT)
-  req.method = "POST"
-  req.headers = { "Content-Type": "application/json" }
-  req.body = JSON.stringify({
-    jsonrpc: "2.0",
-    method: "eth_call",
-    params: [{
-      to: STAKING_CONTRACT,
-      data: `0x70a08231000000000000000000000000${WALLET_ADDRESS.slice(2)}`
-    }, "latest"],
-    id: 1
-  })
-
-  try {
-    const response = await req.loadJSON()
-    if (response.error) return 0
-    return parseInt(response.result, 16)
-  } catch (error) {
-    console.error("Error fetching staking balance:", error)
-    return 0
-  }
+async function getBalance() {
+    const shares = await getShares()
+    const pps = await getPricePerShare()
+    const ethValue = (shares * pps)
+    return ethValue.toFixed(4)
 }
+
+async function getShares() {
+    const req = new Request(RPC_ENDPOINT)
+    req.method = "POST"
+    req.headers = { "Content-Type": "application/json" }
+    req.body = JSON.stringify({
+        jsonrpc: "2.0",
+        method: "eth_call",
+        params: [{
+            to: CONTRACT_ADDRESS,
+            data: `0x70a08231000000000000000000000000${WALLET_ADDRESS.slice(2)}`
+        }, "latest"],
+        id: 1
+    })
+    
+    try {
+        const response = await req.loadJSON()
+        if (response.error) return 0
+        return parseInt(response.result, 16) / 1e18
+    } catch (error) {
+        return 0
+    }
+}
+
 
 // Time tracking
 function saveLastRefreshTime() {
