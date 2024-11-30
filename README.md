@@ -12,7 +12,7 @@ An iOS widget that tracks your ETH, crvUSD or USDCe yield chasing strategy perfo
 - Automatic balance updates
 
 # Widget Display
-![YCSETH](https://github.com/user-attachments/assets/36455067-58c8-4282-bc23-ec5a7a46b7b3)
+![YCSETH](https://i.ibb.co/Jjqswmy/IMG-3450.jpg)
 ![YCScrvUSD](https://i.ibb.co/7XvLdfn/IMG-3448.jpg)
 ![YCSUSDCe](https://i.ibb.co/yWSjtBF/IMG-3449.jpg)
 
