@@ -154,34 +154,32 @@ function saveTransactions(newTransactions) {
 }
 
 async function calculateProfit(currentBalance) {
-  const fm = FileManager.local()
-  const path = fm.joinPath(fm.documentsDirectory(), TRANSACTIONS_FILE)
-  
-  if (!fm.fileExists(path)) return 0
-  
-  try {
-    const transactions = JSON.parse(fm.readString(path))
-    let depositValue = 0
-    let currentShares = 0
+    const fm = FileManager.local()
+    const path = fm.joinPath(fm.documentsDirectory(), TRANSACTIONS_FILE)
     
-    transactions.forEach(tx => {
-      if (tx.type === 'deposit') {
-        depositValue += tx.amount
-        currentShares += tx.shares
-      } else {
-        currentShares -= tx.shares
-        depositValue -= (tx.amount)
-      }
-    })
+    if (!fm.fileExists(path)) return 0
     
-    return currentBalance - depositValue
-    
-  } catch (e) {
-    console.error("Error calculating profit:", e)
-    return 0
-  }
+    try {
+        const transactions = JSON.parse(fm.readString(path))
+        let totalDeposited = 0
+        let totalWithdrawn = 0
+        
+        transactions.forEach(tx => {
+            if (tx.type === 'deposit') {
+                totalDeposited += tx.amount
+            } else if (tx.type === 'withdraw') {
+                totalWithdrawn += tx.amount
+            }
+        })
+        
+        // Current value minus net deposits
+        const netDeposits = totalDeposited - totalWithdrawn
+        return currentBalance - netDeposits
+    } catch (e) {
+        console.error("Error calculating profit:", e)
+        return 0
+    }
 }
-
 async function scanNewTransactions() {
   const lastBlock = await getLastScannedBlock()
   const currentBlock = await getCurrentBlock()
