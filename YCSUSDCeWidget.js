@@ -1,13 +1,13 @@
 
 const WALLET_ADDRESS = "0x6833df4E1edB361A04491349833c83A4868ABCdA"
-const CONTRACT_ADDRESS = "0xA7781F1D982Eb9000BC1733E29Ff5ba2824cDBE5"
+const CONTRACT_ADDRESS = "0x8a1eF3066553275829d1c0F64EE8D5871D5ce9d3"
 const STAKING_CONTRACT = ""
 const RPC_ENDPOINT = "https://arb1.arbitrum.io/rpc"
 const TEXT_COLOR = new Color("#FFFFFF")
 const LOGO_URL = "https://i.ibb.co/bB6G6gN/GOAT-Protocol-logo-white-2.png"
-const LAST_REFRESH_FILE = "lastRefreshTime_crvusd.txt"
-const LAST_BLOCK_FILE = "lastBlockScanned_crvusd.txt"
-const TRANSACTIONS_FILE = "strategyTransactions_crvusd.json"
+const LAST_REFRESH_FILE = "lastRefreshTime_usdce.txt"
+const LAST_BLOCK_FILE = "lastBlockScanned_usdce.txt"
+const TRANSACTIONS_FILE = "strategyTransactions_usdce.json"
 const ACCENT_COLOR = new Color("#C678E5")
 
 // Event signatures
@@ -124,7 +124,7 @@ async function getContractEvents(fromBlock, toBlock) {
         
         return response.result.map(log => ({
             type: log.topics[0].toLowerCase() === DEPOSIT_EVENT.toLowerCase() ? 'deposit' : 'withdraw',
-            amount: Number(BigInt("0x" + log.data.slice(2, 66))) / 1e18,
+            amount: Number(BigInt("0x" + log.data.slice(2, 66))) / 1e6,
             blockNumber: parseInt(log.blockNumber, 16),
             transactionHash: log.transactionHash
         }))
@@ -257,7 +257,7 @@ async function getShares() {
     try {
         const response = await req.loadJSON()
         if (response.error) return 0
-        return parseInt(response.result, 16) / 1e18
+        return parseInt(response.result, 16) / 1e6
     } catch (error) {
         return 0
     }
@@ -334,7 +334,7 @@ async function createWidget() {
     balanceText.textColor = TEXT_COLOR;
     balanceText.font = getFont(16, "bold");
   
-  const crvUSDtext = balanceStack.addText("crvUSD")
+  const crvUSDtext = balanceStack.addText("USDCe")
   crvUSDtext.textColor = ACCENT_COLOR
   crvUSDtext.font = getFont(15, "bold")
   
@@ -347,7 +347,7 @@ async function createWidget() {
   
   if (!isNaN(profit)) {
     const prefix = profit > 0 ? "+" : ""
-    const profitText = profitStack.addText(`${prefix}${profit.toFixed(4)} crvUSD`)
+    const profitText = profitStack.addText(`${prefix}${profit.toFixed(2)} USDCe`)
     profitText.textColor = profit >= 0 ? ACCENT_COLOR : new Color("#FF5252")
     profitText.font = getFont(12, "regular")
   }
