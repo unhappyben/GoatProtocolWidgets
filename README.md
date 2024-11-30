@@ -1,21 +1,23 @@
-# Goat FI Yield Chasing Silo ETH Strategy
-An iOS widget that tracks your YCSETH strategy performance including balance, profits, and transaction history on Arbitrum.
+# Goat FI Yield Chasing Strategy Widgets
+An iOS widget that tracks your ETH, crvUSD or USDCe yield chasing strategy performance including balance, profits, and transaction history on Arbitrum.
 
 # Requirements
 - Download Scriptable from the iOS App Store
 - Arbitrum wallet address with strategy deposits
 
 # Features
-- Real-time ETH balance tracking
+- Real-time balance tracking
 - Profit/loss calculation
 - Transaction history monitoring
 - Automatic balance updates
 
 # Widget Display
 ![YCSETH](https://github.com/user-attachments/assets/36455067-58c8-4282-bc23-ec5a7a46b7b3)
+![YCScrvUSD](https://i.ibb.co/7XvLdfn/IMG-3448.jpg)
+![YCSUSDCe](https://i.ibb.co/yWSjtBF/IMG-3449.jpg)
 
-- Current ETH balance
-- Profit/loss indicator (green for profit, red for loss)
+- Current  balance
+- Profit/loss indicator
 - Last refresh timestamp
 
 # Setup Instructions
