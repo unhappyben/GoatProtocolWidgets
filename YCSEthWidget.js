@@ -138,21 +138,28 @@ async function getContractEvents(fromBlock, toBlock) {
 }
 
 function saveTransactions(newTransactions) {
-  const fm = FileManager.local()
-  const path = fm.joinPath(fm.documentsDirectory(), TRANSACTIONS_FILE)
-  
-  let transactions = []
-  if (fm.fileExists(path)) {
-    try {
-      transactions = JSON.parse(fm.readString(path))
-    } catch (e) {
-      console.error("Error reading transactions:", e)
+    const fm = FileManager.local()
+    const path = fm.joinPath(fm.documentsDirectory(), TRANSACTIONS_FILE)
+    let existingTransactions = []
+    
+    if (fm.fileExists(path)) {
+        existingTransactions = JSON.parse(fm.readString(path))
     }
-  }
-  
-  transactions.push(...newTransactions)
-  fm.writeString(path, JSON.stringify(transactions))
+    
+    // Create a Set of existing transaction hashes
+    const existingTxHashes = new Set(
+        existingTransactions.map(tx => tx.transactionHash)
+    )
+    
+    // Only add transactions we haven't seen before
+    const uniqueNewTransactions = newTransactions.filter(tx => 
+        !existingTxHashes.has(tx.transactionHash)
+    )
+    
+    existingTransactions.push(...uniqueNewTransactions)
+    fm.writeString(path, JSON.stringify(existingTransactions))
 }
+
 
 
 async function calculateProfit(currentBalance) {
@@ -381,6 +388,25 @@ async function debugAll() {
     }
 }
 
+async function detailedDebug() {
+    const shares = await getShares()
+    const pps = await getPricePerShare()
+    const balance = await getBalance()
+    console.log({
+        shares,
+        pricePerShare: pps,
+        rawBalance: shares * pps,
+        formattedBalance: balance
+    })
+    
+    const fm = FileManager.local()
+    const txPath = fm.joinPath(fm.documentsDirectory(), TRANSACTIONS_FILE)
+    const transactions = JSON.parse(fm.readString(txPath))
+    console.log("Raw transactions:", transactions)
+}
+
+
+
 async function verifyEvents() {
     const lastBlock = await getLastScannedBlock()
     const currentBlock = await getCurrentBlock()
@@ -404,11 +430,12 @@ async function main() {
     } else {
         widget.presentSmall()
         await debugAll()
+        await detailedDebug() // Add this line
         await verifyEvents()
     }
-    
     saveLastRefreshTime()
 }
+
 
 await initializeFiles()
 await main()
